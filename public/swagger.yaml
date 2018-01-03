@@ -1,0 +1,102 @@
+---
+swagger: "2.0"
+info:
+  description: "The FileService API allows: upload files that are stored in local\
+    \ file system to the cloud data storage in enrypted form, enrypt files in local\
+    \ machine or local server, download files from cloud services, decrypt files downloaded\
+    \ from cloud services in local machine or local server."
+  version: "1.0.0"
+  title: "File Service API"
+  contact:
+    email: "mishanyakolpakov@gmail.com"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "localhost:8080"
+basePath: "/FileService"
+tags:
+- name: "users"
+  description: "Operations available to authorized users"
+schemes:
+- "http"
+paths:
+  /files:
+    post:
+      tags:
+      - "users"
+      summary: "uploads a file"
+      description: "this endpoint allows to upload file"
+      operationId: "uploadFile"
+      consumes:
+      - "multipart/form-data"
+      parameters:
+      - name: "fileId"
+        in: "formData"
+        description: "File ID"
+        required: true
+        type: "string"
+      - name: "file"
+        in: "formData"
+        description: "File to upload"
+        required: true
+        type: "file"
+      - name: "X-AUTH"
+        in: "header"
+        description: "Request header"
+        required: true
+        type: string
+      responses:
+        '200':
+          description: "successful upload operation"
+        '400':
+          description: "file not saved"
+  /files/{fileId}:
+    get:
+      tags:
+      - "users"
+      summary: "downloads a file"
+      description: "this endpoint allows to get file by Id"
+      operationId: "downloadFile"
+      produces:
+      - "application/octet-stream"
+      parameters:
+      - name: "fileId"
+        in: "path"
+        description: "ID of file to download"
+        required: true
+        type: "string"
+      - name: "X-AUTH"
+        in: "header"
+        description: "Request header"
+        required: true
+        type: string
+      responses:
+        '200':
+          description: "successfull download operation"
+          schema:
+            type: "file"
+        '400':
+          description: "file not found"
+    delete:
+      tags:
+      - "users"
+      summary: "delete file from database"
+      description: "this endpoint allows to delete file by Id"
+      operationId: "deleteFileById"
+      parameters:
+      - name: "fileId"
+        in: path
+        description: "Id of file that will be deleted"
+        required: true
+        type: string
+      - name: "X-AUTH"
+        in: "header"
+        description: "Request header"
+        required: true
+        type: string
+      responses:
+        '200':
+          description: "successfully deleted"
+        '400':
+          description: "Bad request"
+definitions: {}

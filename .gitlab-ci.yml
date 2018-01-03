@@ -1,0 +1,92 @@
+variables:
+  MAVEN_OPTS: "-Djava.awt.headless=true"
+
+.production-only: &production-only
+  only:
+    - master
+
+.dev-only: &dev-only
+  only:
+    - development
+
+.protected-only: &protected-only
+  only:
+    - master
+    - STAGE
+    - development
+
+before_script:
+  - if [ "$CI_COMMIT_REF_NAME" != "master" ]; then export BRANCH_NAME=$(echo -en $CI_COMMIT_REF_NAME | tr -c '[:alnum:]_.-' '-'); fi
+
+stages:
+  - build
+  - documentation
+  - package
+  - analyze_and_deliver
+
+compile_project:
+  tags:
+    - ita
+  stage: build
+  script:
+    - mvn clean compile -B "$MAVEN_OPTS"
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - public/
+      - target/
+    when: always
+
+run_tests_and_package:
+  tags:
+    - ita
+  stage: package
+  script:
+      - mvn package -B "$MAVEN_OPTS"
+  dependencies:
+      - compile_project
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - target/
+    when: always
+
+sonar_qube:
+  tags:
+    - ita
+  stage: analyze_and_deliver
+  script:
+#    - mvn sonar:sonar -B -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=kvjavaxxx -Dsonar.login="$SONAR_SECRET" -Dsonar.branch="$BRANCH_NAME" "$MAVEN_OPTS"
+#    - cat target/site/jacoco/index.html
+    - echo "target/site/jacoco/index.html"
+  dependencies:
+    - run_tests_and_package
+  when: always
+
+deploy_the_jar:
+  tags:
+    - container
+  stage: analyze_and_deliver
+  before_script:
+    - if [ "$CI_COMMIT_REF_NAME" != "master" ]; then export IMAGE_TAG=$(echo -en $CI_COMMIT_REF_NAME | tr -c '[:alnum:]_.-' '-'); else export IMAGE_TAG="latest";fi
+    - chmod +x rootfs/app-entrypoint.sh
+    - docker login -u "gitlab-ci-token" -p "$CI_JOB_TOKEN" $CI_REGISTRY
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$IMAGE_TAG" .
+    - docker push "$CI_REGISTRY_IMAGE:$IMAGE_TAG"
+  after_script:
+    - docker volume ls -qf dangling=true | xargs -r docker volume rm
+    - docker rm $(docker ps -qa --no-trunc --filter "status=exited")
+  <<: *protected-only
+
+pages:
+  tags:
+    - ita
+  stage: documentation
+  script:
+    - echo 'Publishing Documents'
+  artifacts:
+    paths:
+      - public
+  when: always
+  <<: *dev-only
